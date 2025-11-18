@@ -12,6 +12,7 @@ import (
 	_ "github.com/lib/pq"
 )
 
+//go:embed templates/*
 var templatesFS embed.FS
 
 func getEnv(key, fallback string) string {
@@ -80,8 +81,8 @@ func main() {
 	r.PUT("/users/:id", updateUser)
 	r.DELETE("/users/:id", deleteUser)
 
-	// Start the server
-	r.Run(":8080")
+	port := getEnv("PORT", "8080")
+	r.Run(":" + port)
 }
 
 // Handler to create a new user
