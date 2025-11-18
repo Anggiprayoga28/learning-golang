@@ -5,25 +5,32 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
 
-const (
-	host     = "learning-postgres" // Use the container name
-	port     = 5432                // Use the container's internal port
-	user     = "postgres"
-	password = "mysecretpassword"
-	dbname   = "learningdb"
-)
+func getEnv(key, fallback string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return fallback
+}
 
 var db *sql.DB
 
 func main() {
+	host := getEnv("DB_HOST", "learning-postgres")
+	port := getEnv("DB_PORT", "5432")
+	user := getEnv("DB_USER", "postgres")
+	password := getEnv("DB_PASSWORD", "mysecretpassword")
+	dbname := getEnv("DB_NAME", "learningdb")
+
 	// Connect to the database
-	psqlInfo := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
+	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
+
 	var err error
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
