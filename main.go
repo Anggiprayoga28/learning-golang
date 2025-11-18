@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"embed"
 	"fmt"
 	"log"
 	"net/http"
@@ -11,9 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
-
-//go:embed templates/*
-var templatesFS embed.FS
 
 func getEnv(key, fallback string) string {
 	if value := os.Getenv(key); value != "" {
@@ -56,16 +52,8 @@ func main() {
 	// Initialize Gin router
 	r := gin.Default()
 
-	// Define routes
-	r.GET("/", func(c *gin.Context) {
-		htmlContent, err := templatesFS.ReadFile("templates/index.html")
-		if err != nil {
-			c.String(http.StatusInternalServerError, "Failed to load template: %v", err)
-			return
-		}
-		c.Header("Content-Type", "text/html")
-		c.String(http.StatusOK, string(htmlContent))
-	})
+	// Serve static HTML file from templates directory
+	r.StaticFile("/", "./templates/index.html")
 
 	r.GET("/users", func(c *gin.Context) {
 		// Fetch all users and return as JSON
