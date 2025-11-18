@@ -11,5 +11,8 @@
       "src": "/(.*)",
       "dest": "main.go"
     }
-  ]
+  ],
+  "env": {
+    "DATABASE_URL": "@database_url"
+  }
 }
