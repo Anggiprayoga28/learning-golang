@@ -21,15 +21,19 @@ func getEnv(key, fallback string) string {
 var db *sql.DB
 
 func main() {
-	host := getEnv("DB_HOST", "learning-postgres")
-	port := getEnv("DB_PORT", "5432")
-	user := getEnv("DB_USER", "postgres")
-	password := getEnv("DB_PASSWORD", "mysecretpassword")
-	dbname := getEnv("DB_NAME", "learningdb")
+	var psqlInfo string
 
-	// Connect to the database
-	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		host, port, user, password, dbname)
+	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
+		psqlInfo = databaseURL
+	} else {
+		host := getEnv("DB_HOST", "learning-postgres")
+		port := getEnv("DB_PORT", "5432")
+		user := getEnv("DB_USER", "postgres")
+		password := getEnv("DB_PASSWORD", "mysecretpassword")
+		dbname := getEnv("DB_NAME", "learningdb")
+		psqlInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+			host, port, user, password, dbname)
+	}
 
 	var err error
 	db, err = sql.Open("postgres", psqlInfo)
