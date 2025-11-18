@@ -6,81 +6,54 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/lib/pq"
 )
 
-func getEnv(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
-}
-
 var db *sql.DB
 
-func initDB() error {
-	var psqlInfo string
-
-	if databaseURL := os.Getenv("DATABASE_URL"); databaseURL != "" {
-		psqlInfo = databaseURL
-		log.Println("Using DATABASE_URL from environment")
-	} else {
-		host := getEnv("DB_HOST", "learning-postgres")
-		port := getEnv("DB_PORT", "5432")
-		user := getEnv("DB_USER", "postgres")
-		password := getEnv("DB_PASSWORD", "mysecretpassword")
-		dbname := getEnv("DB_NAME", "learningdb")
-		psqlInfo = fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=require",
-			host, port, user, password, dbname)
-		log.Println("Using individual DB environment variables")
+func main() {
+	// Connect to the database
+	psqlInfo := os.Getenv("DATABASE_URL")
+	if psqlInfo == "" {
+		log.Fatal("DATABASE_URL environment variable is not set")
 	}
-
 	var err error
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
-		return fmt.Errorf("failed to open database connection: %v", err)
-	}
-
-	db.SetMaxOpenConns(10)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
-	db.SetConnMaxIdleTime(1 * time.Minute)
-
-	maxRetries := 5
-	for i := 0; i < maxRetries; i++ {
-		err = db.Ping()
-		if err == nil {
-			log.Println("Successfully connected to the database!")
-			return nil
-		}
-		log.Printf("Failed to ping database (attempt %d/%d): %v", i+1, maxRetries, err)
-		time.Sleep(time.Duration(i+1) * time.Second)
-	}
-
-	return fmt.Errorf("failed to connect to database after %d attempts: %v", maxRetries, err)
-}
-
-func main() {
-	// Initialize database
-	if err := initDB(); err != nil {
-		log.Fatalf("Database initialization failed: %v", err)
+		log.Fatalf("Failed to open database connection: %v", err)
 	}
 	defer db.Close()
 
+	// Test the connection
+	err = db.Ping()
+	if err != nil {
+		log.Fatalf("Failed to ping database: %v", err)
+	}
+	fmt.Println("Successfully connected to the database!")
+
 	// Initialize Gin router
-	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
-	// Serve static HTML file from templates directory
-	r.StaticFile("/", "./templates/index.html")
+	// Load HTML templates
+	r.LoadHTMLGlob("templates/*")
 
-	r.GET("/users", func(c *gin.Context) {
+	// Define routes
+	r.GET("/", func(c *gin.Context) {
+		// Fetch all users and render the index page
 		users, err := getUsersFromDB()
 		if err != nil {
-			log.Printf("Error fetching users: %v", err)
+			c.HTML(http.StatusInternalServerError, "index.html", gin.H{"error": err.Error()})
+			return
+		}
+		c.HTML(http.StatusOK, "index.html", gin.H{"users": users})
+	})
+
+	r.GET("/users", func(c *gin.Context) {
+		// Fetch all users and return as JSON
+		users, err := getUsersFromDB()
+		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
@@ -91,9 +64,8 @@ func main() {
 	r.PUT("/users/:id", updateUser)
 	r.DELETE("/users/:id", deleteUser)
 
-	port := getEnv("PORT", "8080")
-	log.Printf("Starting server on port %s", port)
-	r.Run(":" + port)
+	// Start the server
+	r.Run("0.0.0.0:7777")
 }
 
 // Handler to create a new user
@@ -134,17 +106,10 @@ func updateUser(c *gin.Context) {
 		return
 	}
 
-	result, err := db.Exec("UPDATE users SET name = $1, department = $2, email = $3 WHERE id = $4",
+	_, err := db.Exec("UPDATE users SET name = $1, department = $2, email = $3 WHERE id = $4",
 		user.Name, user.Department, user.Email, id)
 	if err != nil {
-		log.Printf("Failed to update user: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
@@ -154,16 +119,9 @@ func updateUser(c *gin.Context) {
 // Handler to delete a user
 func deleteUser(c *gin.Context) {
 	id := c.Param("id")
-	result, err := db.Exec("DELETE FROM users WHERE id = $1", id)
+	_, err := db.Exec("DELETE FROM users WHERE id = $1", id)
 	if err != nil {
-		log.Printf("Failed to delete user: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-		return
-	}
-
-	rowsAffected, _ := result.RowsAffected()
-	if rowsAffected == 0 {
-		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 		return
 	}
 
