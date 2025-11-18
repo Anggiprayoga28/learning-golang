@@ -1,0 +1,22 @@
+version: '3.8'
+
+services:
+  learning-postgres:
+    image: postgres:15-alpine
+    container_name: learning-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: learningdb
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  go-app:
+    build: .
+    container_name: go-app
+    ports:
+      - "8086:8080"
+    depends_on:
+      - learning-postgres
