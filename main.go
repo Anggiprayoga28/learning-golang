@@ -81,7 +81,7 @@ func main() {
 	r.PUT("/users/:id", updateUser)
 	r.DELETE("/users/:id", deleteUser)
 
-	port := getEnv("PORT", "8086")
+	port := getEnv("PORT", "8080")
 	r.Run(":" + port)
 }
 

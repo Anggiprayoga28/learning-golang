@@ -17,6 +17,6 @@ services:
     build: .
     container_name: go-app
     ports:
-      - "8086:8080"
+      - "8080:8080"
     depends_on:
       - learning-postgres
